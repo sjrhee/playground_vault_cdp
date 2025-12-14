@@ -1,10 +1,19 @@
 package com.example;
 
-import javax.net.ssl.*;
-import java.io.*;
-import java.net.URL;
+import com.google.gson.Gson;
+
+import com.google.gson.annotations.SerializedName;
+
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
+import java.time.Duration;
 
 public class CrdpClient {
 
@@ -12,7 +21,9 @@ public class CrdpClient {
     private final String policy;
     private final String token;
     private final String user;
-    private SSLContext sslContext;
+
+    private final HttpClient httpClient;
+    private final Gson gson;
 
     private static final int TIMEOUT = 10; // 10 seconds
 
@@ -29,10 +40,25 @@ public class CrdpClient {
         this.policy = policy;
         this.token = token;
         this.user = user;
+        this.gson = new Gson();
+
         try {
-            this.sslContext = getInsecureSslContext(); // 생성 시 한 번만 초기화
+            // 시스템 속성으로 호스트네임 검증 비활성화 (JDK 11 HttpClient workaround)
+            System.setProperty("jdk.internal.httpclient.disableHostnameVerification", "true");
+
+            SSLContext sslContext = getInsecureSslContext();
+
+            // 호스트네임 검증 비활성화 (개발 환경용)
+            javax.net.ssl.SSLParameters sslParams = new javax.net.ssl.SSLParameters();
+            sslParams.setEndpointIdentificationAlgorithm(null);
+
+            this.httpClient = HttpClient.newBuilder()
+                    .sslContext(sslContext)
+                    .sslParameters(sslParams)
+                    .connectTimeout(Duration.ofSeconds(TIMEOUT))
+                    .build();
         } catch (Exception e) {
-            throw new RuntimeException("SSLContext 초기화 실패", e);
+            throw new RuntimeException("HttpClient 초기화 실패", e);
         }
     }
 
@@ -42,135 +68,65 @@ public class CrdpClient {
     public void warmup() {
         try {
             String url = baseUrl + "/v1/protect";
-            String json = String.format("{\"protection_policy_name\":\"%s\",\"data\":\"WARMUP\"}", policy);
-            post(url, json);
+            ProtectRequest request = new ProtectRequest(policy, "WARMUP");
+            post(url, request);
         } catch (Exception e) {
-            // 워밍업 실패는 무시
-            System.err.println("CRDP Warmup failed (ignoring): " + e.getMessage());
+            // 워밍업 실패는 무시하지만 로깅은 남김
+            System.out.println("CRDP Warmup failed (ignoring): " + e.getMessage());
         }
     }
 
     /**
      * 데이터 암호화 (Protect)
      */
-    public String protect(String plaintext) throws Exception {
+    public String enc(String plaintext) throws Exception {
         if (plaintext == null)
             throw new IllegalArgumentException("입력 데이터는 null일 수 없습니다.");
 
         String url = baseUrl + "/v1/protect";
-        String safeData = escapeJson(plaintext);
-        String json = String.format("{\"protection_policy_name\":\"%s\",\"data\":\"%s\"}", policy, safeData);
+        ProtectRequest request = new ProtectRequest(policy, plaintext);
 
-        String response = post(url, json);
-        return extractValue(response, "protected_data");
+        String responseJson = post(url, request);
+        ProtectResponse response = gson.fromJson(responseJson, ProtectResponse.class);
+
+        return response.protectedData;
     }
 
     /**
      * 데이터 복호화 (Reveal)
      */
-    public String reveal(String encrypted) throws Exception {
+    public String dec(String encrypted) throws Exception {
         if (encrypted == null)
             throw new IllegalArgumentException("입력 데이터는 null일 수 없습니다.");
 
         String url = baseUrl + "/v1/reveal";
-        String safeData = escapeJson(encrypted);
-        String json;
-        if (user != null && !user.isEmpty()) {
-            String safeUser = escapeJson(user);
-            json = String.format("{\"protection_policy_name\":\"%s\",\"protected_data\":\"%s\",\"username\":\"%s\"}", policy, safeData, safeUser);
-        } else {
-            json = String.format("{\"protection_policy_name\":\"%s\",\"protected_data\":\"%s\"}", policy, safeData);
-        }
+        RevealRequest request = new RevealRequest(policy, encrypted, user);
 
-        String response = post(url, json);
-        return extractValue(response, "data");
+        String responseJson = post(url, request);
+        RevealResponse response = gson.fromJson(responseJson, RevealResponse.class);
+
+        return response.data;
     }
 
-    private String post(String urlStr, String json) throws Exception {
-        URL url = new URL(urlStr);
-        HttpsURLConnection conn = (HttpsURLConnection) url.openConnection();
+    private String post(String url, Object requestBody) throws Exception {
+        String jsonBody = gson.toJson(requestBody);
 
-        conn.setSSLSocketFactory(this.sslContext.getSocketFactory());
-        conn.setHostnameVerifier((hostname, session) -> true);
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Bearer " + token)
+                .timeout(Duration.ofSeconds(TIMEOUT))
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
+                .build();
 
-        conn.setRequestMethod("POST");
-        conn.setRequestProperty("Content-Type", "application/json");
-        conn.setRequestProperty("Authorization", "Bearer " + token);
-        conn.setConnectTimeout(TIMEOUT * 1000);
-        conn.setReadTimeout(TIMEOUT * 1000);
-        conn.setDoOutput(true);
+        HttpResponse<String> response = httpClient.send(request,
+                HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
-        try (OutputStream os = conn.getOutputStream()) {
-            os.write(json.getBytes(StandardCharsets.UTF_8));
+        if (response.statusCode() >= 400) {
+            throw new RuntimeException("CRDP 서버 오류 (HTTP " + response.statusCode() + "): " + response.body());
         }
 
-        int status = conn.getResponseCode();
-        InputStream stream = (status >= 200 && status < 300) ? conn.getInputStream() : conn.getErrorStream();
-
-        if (stream == null) {
-            throw new RuntimeException("CRDP 서버 오류 (HTTP " + status + "): 응답 없음");
-        }
-
-        StringBuilder response = new StringBuilder();
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
-            String line;
-            while ((line = br.readLine()) != null)
-                response.append(line);
-        }
-
-        if (status >= 400) {
-            throw new RuntimeException("CRDP 서버 오류 (HTTP " + status + "): " + response.toString());
-        }
-
-        return response.toString();
-    }
-
-    private String extractValue(String json, String key) {
-        if (json == null)
-            return null;
-
-        String searchKey = "\"" + key + "\"";
-        int keyIndex = json.indexOf(searchKey);
-        if (keyIndex == -1)
-            return null;
-
-        int colonIndex = json.indexOf(":", keyIndex + searchKey.length());
-        if (colonIndex == -1)
-            return null;
-
-        int valueStartIndex = json.indexOf("\"", colonIndex + 1);
-        if (valueStartIndex == -1)
-            return null;
-
-        int valueEndIndex = valueStartIndex + 1;
-        while (valueEndIndex < json.length()) {
-            char c = json.charAt(valueEndIndex);
-            if (c == '\\') {
-                valueEndIndex += 2;
-                continue;
-            }
-            if (c == '"') {
-                break;
-            }
-            valueEndIndex++;
-        }
-
-        if (valueEndIndex >= json.length())
-            return null;
-
-        return json.substring(valueStartIndex + 1, valueEndIndex);
-    }
-
-    private String escapeJson(String data) {
-        if (data == null)
-            return "";
-        return data.replace("\\", "\\\\")
-                .replace("\"", "\\\"")
-                .replace("\b", "\\b")
-                .replace("\f", "\\f")
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t");
+        return response.body();
     }
 
     private SSLContext getInsecureSslContext() throws Exception {
@@ -190,5 +146,41 @@ public class CrdpClient {
         SSLContext sc = SSLContext.getInstance("TLS");
         sc.init(null, trustAll, new java.security.SecureRandom());
         return sc;
+    }
+
+    // --- DTO Classes ---
+
+    private static class ProtectRequest {
+        @SerializedName("protection_policy_name")
+        String policyName;
+        String data;
+
+        ProtectRequest(String policyName, String data) {
+            this.policyName = policyName;
+            this.data = data;
+        }
+    }
+
+    private static class ProtectResponse {
+        @SerializedName("protected_data")
+        String protectedData;
+    }
+
+    private static class RevealRequest {
+        @SerializedName("protection_policy_name")
+        String policyName;
+        @SerializedName("protected_data")
+        String protectedData;
+        String username;
+
+        RevealRequest(String policyName, String protectedData, String username) {
+            this.policyName = policyName;
+            this.protectedData = protectedData;
+            this.username = username;
+        }
+    }
+
+    private static class RevealResponse {
+        String data;
     }
 }

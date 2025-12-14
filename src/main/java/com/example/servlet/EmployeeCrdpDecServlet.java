@@ -31,6 +31,7 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
     private String crdpJwt;
 
     private CrdpClient crdp;
+    private Gson gson;
 
     @Override
     public void init() throws ServletException {
@@ -50,11 +51,15 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
             this.crdpJwt = props.getProperty("crdp_jwt");
 
             if (this.crdpEndpoint == null || this.crdpPolicy == null || this.crdpJwt == null) {
-                 throw new ServletException("Missing required CRDP configuration in crdp.properties");
+                throw new ServletException("Missing required CRDP configuration in crdp.properties");
             }
 
             this.crdp = new CrdpClient(crdpEndpoint, crdpPolicy, crdpJwt, crdpUser);
             this.crdp.warmup();
+
+            this.gson = new GsonBuilder()
+                    .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
+                    .create();
         } catch (Exception e) {
             throw new ServletException("Failed to initialize CrdpClient: " + e.getMessage(), e);
         }
@@ -83,21 +88,24 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
         int size = 100;
         try {
             String pageParam = req.getParameter("page");
-            if (pageParam != null) page = Integer.parseInt(pageParam);
+            if (pageParam != null)
+                page = Integer.parseInt(pageParam);
             String sizeParam = req.getParameter("size");
-            if (sizeParam != null) size = Integer.parseInt(sizeParam);
-        } catch (NumberFormatException e) { }
+            if (sizeParam != null)
+                size = Integer.parseInt(sizeParam);
+        } catch (NumberFormatException e) {
+        }
 
         int offset = page * size;
         String sql = "SELECT emp_no, date_of_birth, first_name, last_name, gender, date_of_hiring, ssn_no FROM employee LIMIT ? OFFSET ?";
 
         try (Connection conn = DriverManager.getConnection(url, dbUser, dbPassword);
-             PreparedStatement stmt = conn.prepareStatement(sql)) {
-             
-             stmt.setInt(1, size);
-             stmt.setInt(2, offset);
-             
-             try (ResultSet rs = stmt.executeQuery()) {
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+
+            stmt.setInt(1, size);
+            stmt.setInt(2, offset);
+
+            try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     int empNo = rs.getInt("emp_no");
                     LocalDate birthDate = rs.getDate("date_of_birth").toLocalDate();
@@ -105,12 +113,13 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
                     String lastName = rs.getString("last_name");
                     String gender = rs.getString("gender");
                     LocalDate hireDate = rs.getDate("date_of_hiring").toLocalDate();
-                    
+
                     // 복호화 수행 (CRDP reveal 호출)
                     String encrypted = rs.getString("ssn_no");
                     String ssn;
                     try {
-                        ssn = crdp.reveal(encrypted);
+                        // 복호화 수행 (reveal -> dec 변경)
+                        ssn = crdp.dec(encrypted);
                     } catch (Exception e) {
                         ssn = "Decryption Failed: " + encrypted;
                         // 로그를 남기는 것이 좋지만 여기선 스택트레이스 출력만
@@ -121,10 +130,8 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
                 }
             }
 
-            Gson gson = new GsonBuilder()
-                    .registerTypeAdapter(LocalDate.class, new LocalDateAdapter())
-                    .create();
-            
+            // Gson 인스턴스 재사용 (init에서 초기화됨)
+
             PrintWriter out = resp.getWriter();
             out.print(gson.toJson(employeeList));
             out.flush();
@@ -145,8 +152,10 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
     private static class LocalDateAdapter extends TypeAdapter<LocalDate> {
         @Override
         public void write(JsonWriter jsonWriter, LocalDate localDate) throws IOException {
-            if (localDate == null) jsonWriter.nullValue();
-            else jsonWriter.value(localDate.toString());
+            if (localDate == null)
+                jsonWriter.nullValue();
+            else
+                jsonWriter.value(localDate.toString());
         }
 
         @Override
