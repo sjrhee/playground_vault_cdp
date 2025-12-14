@@ -24,12 +24,8 @@ import java.util.List;
 public class EmployeeCrdpDecServlet extends HttpServlet {
 
     // CRDP Configuration
-    // Loaded from src/main/resources/crdp.properties
-    private String crdpEndpoint;
-    private String crdpPolicy;
-    private String crdpUser;
-    private String crdpJwt;
-
+    // Loaded from src/main/resources/crdp.properties via CrdpClient
+    
     private CrdpClient crdp;
     private Gson gson;
 
@@ -37,24 +33,8 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
     public void init() throws ServletException {
         super.init();
         try {
-            java.util.Properties props = new java.util.Properties();
-            try (java.io.InputStream is = getClass().getClassLoader().getResourceAsStream("crdp.properties")) {
-                if (is == null) {
-                    throw new ServletException("Configuration file 'crdp.properties' not found in classpath");
-                }
-                props.load(is);
-            }
-
-            this.crdpEndpoint = props.getProperty("crdp_endpoint");
-            this.crdpPolicy = props.getProperty("crdp_policy");
-            this.crdpUser = props.getProperty("crdp_user_name");
-            this.crdpJwt = props.getProperty("crdp_jwt");
-
-            if (this.crdpEndpoint == null || this.crdpPolicy == null || this.crdpJwt == null) {
-                throw new ServletException("Missing required CRDP configuration in crdp.properties");
-            }
-
-            this.crdp = new CrdpClient(crdpEndpoint, crdpPolicy, crdpJwt, crdpUser);
+            // CrdpClient가 스스로 속성을 로드하여 초기화
+            this.crdp = CrdpClient.createFromProperties();
             this.crdp.warmup();
 
             this.gson = new GsonBuilder()
@@ -69,6 +49,8 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
+        // Add header to indicate TLS status (can be used by frontend)
+        resp.setHeader("X-Crdp-Tls", String.valueOf(crdp.isUseTls()));
 
         List<Employee> employeeList = new ArrayList<>();
         // Use updated database name

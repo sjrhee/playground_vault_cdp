@@ -20,10 +20,14 @@
 ## 설치 및 실행 방법 (Installation)
 
 ### 1. 프로젝트 설정
-스크립트 실행 권한을 부여합니다.
+
+샘플 데이터를 압축해제하고 tomcat과 mysql 컨테이너를 생성합니다.
 ```bash
-cd playgroud_cdp
-chmod +x scripts/*.sh
+cd scripts/sample_data
+tar zxvf employees.tar.gz
+
+cd ../tomcat_mysql_docker
+docker-compose up -d 또는 docker compose up -d
 ```
 
 ### 2. 데이터베이스 및 워크스페이스 준비
@@ -36,10 +40,13 @@ cd scripts
 1.  `mvn clean package`를 실행하여 `java-db-docker` 프로젝트 빌드.
 2.  빌드된 `ROOT.war` (또는 압축 해제된 폴더)를 `tomcat_mysql_docker/target/ROOT`로 배포.
 
-### 3. 데이터 초기화 (필요 시)
-MySQL 데이터베이스에 샘플 데이터를 로드하거나 초기화하려면 다음 스크립트를 사용합니다. (Docker 컨테이너가 실행 중이어야 함)
+### 3. 데이터 초기 암호화
+평문 데이터를 암호화하여 MySQL 데이터베이스에 저장합니다.
 ```bash
-./i03_reload_employees.sh
+./i01_export_employees.sh   # 평문 데이터를 MySQL 데이터베이스에서 추출
+./i02_convert.sh            # crdp-file-converter를 사용하여 암호화, crdp service 접속 필요
+./i03_reload_employees.sh   # 암호화된 데이터를 MySQL 데이터베이스에 저장
+./run_sql.sh < sample_data/02_load_data.sql # 초기 평문 데이터가 없는 경우 실행
 ```
 
 ## 설정 (Configuration)
@@ -47,18 +54,10 @@ MySQL 데이터베이스에 샘플 데이터를 로드하거나 초기화하려�
 애플리케이션이 CRDP 및 CADP 서비스와 올바르게 통신하기 위해 다음 설정이 필요합니다.
 
 ### 1. CRDP 설정 (`crdp.properties`)
-CRDP 복호화 기능을 사용하기 위해서는 `src/main/resources/crdp.properties` 파일에 올바른 연결 정보를 입력해야 합니다.
+CRDP 라이브러리 설정은 `src/main/resources/crdp.properties` 파일에 올바른 연결 정보를 입력해야 합니다.
 
-**파일 경로:** `src/main/resources/crdp.properties`
-
-```properties
-crdp_endpoint=192.168.0.10:32182   # CRDP 서비스 IP 및 포트
-crdp_policy=dev-users-policy       # CRDP 보호 정책 이름
-crdp_user_name=dev-user01          # 인증에 사용할 CRDP 사용자명
-crdp_jwt=eyJ...                    # 유효한 JWT 인증 토큰
-```
 ### 2. CADP 설정
-CADP 라이브러리 설정은 `src/main/resources/` 내의 관련 파일들(`cadp.properties` 등)을 참고하거나, 소스 코드 내의 `CadpClient` 설정을 따릅니다.
+CADP 라이브러리 설정은 `src/main/resources/cadp.properties` 파일에 올바른 연결 정보를 입력해야 합니다.
 
 ### 3. 데이터베이스 연결 설정
 기본적으로 DB 연결 정보는 서블릿 코드 내에 설정되어 있거나 컨테이너 환경 변수를 따릅니다.

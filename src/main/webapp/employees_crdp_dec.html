@@ -96,7 +96,6 @@
                 prevBtn.disabled = true;
                 nextBtn.disabled = true;
 
-                // Call the CRDP Decrypted API
                 fetch(`api/employee/crdp-dec?page=${page}&size=${pageSize}`)
                     .then(response => {
                         if (!response.ok) {
