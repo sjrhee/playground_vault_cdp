@@ -38,7 +38,6 @@
     </dependency>
 
     <!-- CADP Dependencies -->
-    <!-- CADP Dependencies -->
     <dependency>
         <groupId>com.thales.cadp</groupId>
         <artifactId>CADP_for_JAVA</artifactId>
