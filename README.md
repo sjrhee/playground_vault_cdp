@@ -1,6 +1,6 @@
 # Playground CDP
 
-**Playground CDP**는 MySQL 샘플 데이터베이스(Employees)를 활용하여 민감 정보(예: 주민등록번호)에 대한 **CADP(CipherTrust Application Data Protection)** 및 **CRDP(Container Real-time Data Protection)** 암호화/복호화 통합 기능을 시연하는 Java 웹 애플리케이션입니다.
+**Playground CDP**는 MySQL 샘플 데이터베이스(Employees)를 활용하여 민감 정보(예: 주민등록번호)에 대한 **CADP(CipherTrust Application Data Protection)** 및 **CRDP(CipherTrust RESTful Data Protection)** 암호화/복호화 통합 기능을 시연하는 Java 웹 애플리케이션입니다.
 
 ## 주요 기능 (Features)
 
