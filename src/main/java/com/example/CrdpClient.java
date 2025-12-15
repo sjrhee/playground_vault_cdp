@@ -21,8 +21,6 @@ import java.io.InputStream;
 
 public class CrdpClient {
 
-    public static final String HEADER_CRDP_TLS = "X-Crdp-Tls";
-
     private String baseUrl;
     private String policy;
     private String token;

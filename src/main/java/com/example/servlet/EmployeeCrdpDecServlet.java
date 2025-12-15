@@ -27,8 +27,6 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
-        // CRDP specific header
-        resp.setHeader(CrdpClient.HEADER_CRDP_TLS, String.valueOf(CrdpClient.getInstance().isUseTls()));
 
         List<Employee> employeeList = new ArrayList<>();
         String url = "jdbc:mysql://mysql:3306/mysql_employees?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC";
