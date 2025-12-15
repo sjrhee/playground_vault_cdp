@@ -71,7 +71,7 @@ public class EmployeeCrdpDecServlet extends HttpServlet {
                     String gender = rs.getString("gender");
                     LocalDate hireDate = rs.getDate("date_of_hiring").toLocalDate();
 
-                    // Decrypt SSN using CRDP Singleton
+                    // Decrypt SSN using CRDP
                     String ssnRaw = rs.getString("ssn_no");
                     String ssn;
                     try {
