@@ -32,7 +32,6 @@ LOAD DATA INFILE '$IMPORT_PATH_IN_CONTAINER'
 INTO TABLE employee
 FIELDS TERMINATED BY ','
 LINES TERMINATED BY '\n'
-IGNORE 1 LINES
 (emp_no, employee_id, date_of_birth, first_name, last_name, middle_names, gender, date_of_hiring, date_of_termination, date_of_probation_end, ssn_no);
 SET FOREIGN_KEY_CHECKS = 1;
 EOF

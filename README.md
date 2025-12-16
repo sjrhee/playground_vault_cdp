@@ -12,6 +12,31 @@
 *   **CRDP 복호화 (CRDP Decrypted View)**: Thales CRDP REST API를 호출하여 컨테이너 환경에서 실시간으로 복호화된 SSN 확인.
     *   [EmployeeCrdpDecServlet.java](src/main/java/com/example/servlet/EmployeeCrdpDecServlet.java): `CrdpClient`의 dec를 사용하여 REST API를 호출, SSN을 복호화하여 반환합니다.
 
+## 개발자 사전 숙지 사항
+
+이 시연 프로그램에서 개발자에게 꼭 필요한 4가지 핵심 요소는 다음과 같습니다. CADP 기능을 이해하고 커스터마이징하기 위해 다음 파일들을 우선적으로 확인하시기 바랍니다.
+
+1.  **pom.xml (CADP 의존성)**
+    *   CADP 라이브러리(`CADP_for_JAVA`) 사용을 위한 Maven 의존성이 정의되어 있습니다.
+    ```xml
+    <dependency>
+        <groupId>io.github.thalescpl-io.cadp</groupId>
+        <artifactId>CADP_for_JAVA</artifactId>
+        <version>8.18.1.000</version>
+    </dependency>
+    ```
+
+2.  **[src/main/resources/cadp.properties](src/main/resources/cadp.properties)**
+    *   CipherTrust Manager(CM)와의 연동 정보 및 암호화 동작을 정의하는 설정 파일입니다.
+
+3.  **[src/main/java/com/example/CadpClient.java](src/main/java/com/example/CadpClient.java)**
+    *   복잡한 CADP 초기화 및 호출 로직을 캡슐화하여 손쉽게 구현을 돕는 Helper 싱글톤 클래스입니다.
+
+4.  **[src/main/java/com/example/servlet/EmployeeCadpDecServlet.java](src/main/java/com/example/servlet/EmployeeCadpDecServlet.java)**
+    *   `CadpClient.getInstance().dec(ssnRaw)`를 호출하여 실제로 데이터를 복호화하는 예제 코드가 구현되어 있습니다.
+
+> **참고**: CRDP(CipherTrust RESTful Data Protection)의 경우도 1번(CADP 의존성)을 제외하고는 이와 동일한 구조를 가집니다. `crdp.properties`, `CrdpClient.java`, 그리고 `EmployeeCrdpDecServlet.java`를 참고하시면 됩니다.
+
 ## 사전 요구 사항 (Prerequisites)
 
 이 프로젝트를 실행하기 위해서는 다음 도구들이 설치되어 있어야 합니다.
