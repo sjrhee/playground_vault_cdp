@@ -66,11 +66,32 @@ public class CrdpClient {
             throw new RuntimeException("Failed to load crdp.properties", e);
         }
 
-        String endpoint = props.getProperty("crdp_endpoint");
-        this.useTls = Boolean.parseBoolean(props.getProperty("crdp_tls", "true"));
-        this.policy = props.getProperty("crdp_policy");
-        this.user = props.getProperty("crdp_user_name");
-        this.token = props.getProperty("crdp_jwt");
+        String endpoint = System.getenv("CRDP_ENDPOINT");
+        if (endpoint == null || endpoint.isEmpty()) {
+            endpoint = props.getProperty("crdp_endpoint");
+        }
+
+        String tlsStr = System.getenv("CRDP_TLS");
+        if (tlsStr != null && !tlsStr.isEmpty()) {
+            this.useTls = Boolean.parseBoolean(tlsStr);
+        } else {
+            this.useTls = Boolean.parseBoolean(props.getProperty("crdp_tls", "true"));
+        }
+
+        this.policy = System.getenv("CRDP_POLICY");
+        if (this.policy == null || this.policy.isEmpty()) {
+            this.policy = props.getProperty("crdp_policy");
+        }
+
+        this.user = System.getenv("CRDP_USER_NAME");
+        if (this.user == null || this.user.isEmpty()) {
+            this.user = props.getProperty("crdp_user_name");
+        }
+
+        this.token = System.getenv("CRDP_JWT");
+        if (this.token == null || this.token.isEmpty()) {
+            this.token = props.getProperty("crdp_jwt");
+        }
 
         if (endpoint == null || policy == null || token == null) {
             throw new RuntimeException("Missing required CRDP configuration in crdp.properties");

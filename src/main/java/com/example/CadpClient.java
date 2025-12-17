@@ -40,11 +40,30 @@ public class CadpClient {
             System.err.println("Failed to load cadp.properties");
             return;
         }
-        String keyManagerHost = prop.getProperty("keyManagerHost");
-        String keyManagerPort = prop.getProperty("keyManagerPort");
-        String registrationToken = prop.getProperty("registrationToken");
-        this.protectionPolicyName = prop.getProperty("protectionPolicyName");
-        this.userName = prop.getProperty("userName");
+        String keyManagerHost = System.getenv("CADP_KEY_MANAGER_HOST");
+        if (keyManagerHost == null || keyManagerHost.isEmpty()) {
+            keyManagerHost = prop.getProperty("keyManagerHost");
+        }
+
+        String keyManagerPort = System.getenv("CADP_KEY_MANAGER_PORT");
+        if (keyManagerPort == null || keyManagerPort.isEmpty()) {
+            keyManagerPort = prop.getProperty("keyManagerPort");
+        }
+
+        String registrationToken = System.getenv("CADP_REGISTRATION_TOKEN");
+        if (registrationToken == null || registrationToken.isEmpty()) {
+            registrationToken = prop.getProperty("registrationToken");
+        }
+
+        this.protectionPolicyName = System.getenv("CADP_PROTECTION_POLICY_NAME");
+        if (this.protectionPolicyName == null || this.protectionPolicyName.isEmpty()) {
+            this.protectionPolicyName = prop.getProperty("protectionPolicyName");
+        }
+
+        this.userName = System.getenv("CADP_USER_NAME");
+        if (this.userName == null || this.userName.isEmpty()) {
+            this.userName = prop.getProperty("userName");
+        }
 
         registerClient(keyManagerHost, keyManagerPort, registrationToken);
     }

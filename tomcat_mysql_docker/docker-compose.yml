@@ -31,6 +31,28 @@ services:
     depends_on:
       mysql:
         condition: service_healthy
+    environment:
+      - CADP_KEY_MANAGER_HOST=${CADP_KEY_MANAGER_HOST}
+      - CADP_KEY_MANAGER_PORT=${CADP_KEY_MANAGER_PORT}
+      - CADP_REGISTRATION_TOKEN=${CADP_REGISTRATION_TOKEN}
+      - CADP_PROTECTION_POLICY_NAME=${CADP_PROTECTION_POLICY_NAME}
+      - CADP_USER_NAME=${CADP_USER_NAME}
+      - CRDP_ENDPOINT=${CRDP_ENDPOINT}
+      - CRDP_TLS=${CRDP_TLS}
+      - CRDP_POLICY=${CRDP_POLICY}
+      - CRDP_USER_NAME=${CRDP_USER_NAME}
+      - CRDP_JWT=${CRDP_JWT}
+    networks:
+      - demo-net
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: demo_vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: roottoken
+      VAULT_ADDR: 'http://0.0.0.0:8200'
     networks:
       - demo-net
 
