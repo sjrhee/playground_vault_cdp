@@ -52,6 +52,12 @@
     <p>Using <code>mysql_employees</code> database.</p>
 
     <div style="margin-bottom: 10px;">
+        <input type="number" id="empNoInput" placeholder="Emp No" style="padding: 5px;">
+        <button id="searchBtn" style="padding: 5px 10px; cursor: pointer;">Search</button>
+        <button id="resetBtn" style="padding: 5px 10px; cursor: pointer;">Reset</button>
+    </div>
+
+    <div style="margin-bottom: 10px;">
         <button id="prevBtn" disabled>Previous</button>
         <span id="pageIndicator" style="margin: 0 10px;">Page 1</span>
         <button id="nextBtn">Next</button>
@@ -85,6 +91,9 @@
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
             const pageIndicator = document.getElementById('pageIndicator');
+            const empNoInput = document.getElementById('empNoInput');
+            const searchBtn = document.getElementById('searchBtn');
+            const resetBtn = document.getElementById('resetBtn');
 
             let currentPage = 0;
             const pageSize = 100;
@@ -93,15 +102,19 @@
             const titleElement = document.querySelector('h1');
             titleElement.textContent = 'Employees (Original View)';
 
-            function fetchEmployees(page) {
+            function fetchEmployees(page, empNo = null) {
                 loadingDiv.style.display = 'block';
                 errorDiv.textContent = '';
                 tableBody.innerHTML = ''; // Clear current data
                 prevBtn.disabled = true;
                 nextBtn.disabled = true;
 
-                // Call the Original API
-                fetch(`api/employees/original?page=${page}&size=${pageSize}`)
+                let url = `api/employees/original?page=${page}&size=${pageSize}`;
+                if (empNo) {
+                    url += `&empNo=${empNo}`;
+                }
+
+                fetch(url)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Network response was not ok: ' + response.statusText);
@@ -114,13 +127,13 @@
                             throw new Error(data.error);
                         }
                         populateTable(data);
+                        // If searching by empNo, pagination relies on single page result likely
                         updatePaginationUI(page, data.length);
                     })
                     .catch(error => {
                         loadingDiv.style.display = 'none';
                         errorDiv.textContent = 'Error fetching employees: ' + error.message;
                         console.error('Error:', error);
-                        // Re-enable buttons on error to allow retry or navigation
                         prevBtn.disabled = page === 0;
                         nextBtn.disabled = false;
                     });
@@ -129,20 +142,20 @@
             function updatePaginationUI(page, dataLength) {
                 currentPage = page;
                 pageIndicator.textContent = `Page ${currentPage + 1}`;
-
                 prevBtn.disabled = currentPage === 0;
-
-                // If less data than page size is returned, we are likely at the end
-                // Note: accurate "next" disabling requires knowing total count, 
-                // but for simple pagination, we can assume if dataLength < pageSize, no more next page.
                 nextBtn.disabled = dataLength < pageSize;
             }
 
             function populateTable(employees) {
                 tableBody.innerHTML = '';
+                if (!employees || employees.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td colspan="7" style="text-align:center;">No employees found</td>`;
+                    tableBody.appendChild(row);
+                    return;
+                }
                 employees.forEach(emp => {
                     const row = document.createElement('tr');
-
                     row.innerHTML = `
                         <td>${emp.empNo}</td>
                         <td>${emp.firstName}</td>
@@ -152,19 +165,30 @@
                         <td>${emp.dateOfHiring}</td>
                         <td>${emp.ssn}</td>
                     `;
-
                     tableBody.appendChild(row);
                 });
             }
 
+            searchBtn.addEventListener('click', () => {
+                const empNo = empNoInput.value.trim();
+                fetchEmployees(0, empNo);
+            });
+
+            resetBtn.addEventListener('click', () => {
+                empNoInput.value = '';
+                fetchEmployees(0);
+            });
+
             prevBtn.addEventListener('click', () => {
                 if (currentPage > 0) {
-                    fetchEmployees(currentPage - 1);
+                    const empNo = empNoInput.value.trim();
+                    fetchEmployees(currentPage - 1, empNo);
                 }
             });
 
             nextBtn.addEventListener('click', () => {
-                fetchEmployees(currentPage + 1);
+                const empNo = empNoInput.value.trim();
+                fetchEmployees(currentPage + 1, empNo);
             });
 
             // Initial Load

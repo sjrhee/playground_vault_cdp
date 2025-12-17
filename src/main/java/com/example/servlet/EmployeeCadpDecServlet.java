@@ -55,13 +55,30 @@ public class EmployeeCadpDecServlet extends HttpServlet {
         }
 
         int offset = page * size;
-        String sql = "SELECT emp_no, date_of_birth, first_name, last_name, gender, date_of_hiring, ssn_no FROM employee LIMIT ? OFFSET ?";
+        int empNoParam = -1;
+        String empNoStr = req.getParameter("empNo");
+        if (empNoStr != null && !empNoStr.isEmpty()) {
+            try {
+                empNoParam = Integer.parseInt(empNoStr);
+            } catch (NumberFormatException e) {}
+        }
+
+        String sql;
+        if (empNoParam != -1) {
+            sql = "SELECT emp_no, date_of_birth, first_name, last_name, gender, date_of_hiring, ssn_no FROM employee WHERE emp_no = ?";
+        } else {
+            sql = "SELECT emp_no, date_of_birth, first_name, last_name, gender, date_of_hiring, ssn_no FROM employee LIMIT ? OFFSET ?";
+        }
 
         try (Connection conn = DriverManager.getConnection(url, dbUser, dbPassword);
                 PreparedStatement stmt = conn.prepareStatement(sql)) {
 
-            stmt.setInt(1, size);
-            stmt.setInt(2, offset);
+            if (empNoParam != -1) {
+                stmt.setInt(1, empNoParam);
+            } else {
+                stmt.setInt(1, size);
+                stmt.setInt(2, offset);
+            }
 
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {

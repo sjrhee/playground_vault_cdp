@@ -52,6 +52,12 @@
     <p>Using <code>mysql_employees</code> database.</p>
 
     <div style="margin-bottom: 10px;">
+        <input type="number" id="empNoInput" placeholder="Emp No" style="padding: 5px;">
+        <button id="searchBtn" style="padding: 5px 10px; cursor: pointer;">Search</button>
+        <button id="resetBtn" style="padding: 5px 10px; cursor: pointer;">Reset</button>
+    </div>
+
+    <div style="margin-bottom: 10px;">
         <button id="prevBtn" disabled>Previous</button>
         <span id="pageIndicator" style="margin: 0 10px;">Page 1</span>
         <button id="nextBtn">Next</button>
@@ -85,6 +91,9 @@
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
             const pageIndicator = document.getElementById('pageIndicator');
+            const empNoInput = document.getElementById('empNoInput');
+            const searchBtn = document.getElementById('searchBtn');
+            const resetBtn = document.getElementById('resetBtn');
 
             let currentPage = 0;
             const pageSize = 100;
@@ -93,7 +102,7 @@
             const titleElement = document.querySelector('h1');
             titleElement.textContent = 'Employees (CRDP Decrypted View)';
 
-            function fetchEmployees(page) {
+            function fetchEmployees(page, empNo = null) {
                 loadingDiv.style.display = 'block';
                 errorDiv.textContent = '';
                 tableBody.innerHTML = ''; // Clear current data
@@ -101,7 +110,12 @@
                 nextBtn.disabled = true;
 
                 // Call the CRDP API
-                fetch(`api/employee/crdp-dec?page=${page}&size=${pageSize}`)
+                let url = `api/employee/crdp-dec?page=${page}&size=${pageSize}`;
+                if (empNo) {
+                    url += `&empNo=${empNo}`;
+                }
+
+                fetch(url)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('Network response was not ok: ' + response.statusText);
@@ -140,6 +154,12 @@
 
             function populateTable(employees) {
                 tableBody.innerHTML = '';
+                if (!employees || employees.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `<td colspan="7" style="text-align:center;">No employees found</td>`;
+                    tableBody.appendChild(row);
+                    return;
+                }
                 employees.forEach(emp => {
                     const row = document.createElement('tr');
 
@@ -157,14 +177,26 @@
                 });
             }
 
+            searchBtn.addEventListener('click', () => {
+                const empNo = empNoInput.value.trim();
+                fetchEmployees(0, empNo);
+            });
+
+            resetBtn.addEventListener('click', () => {
+                empNoInput.value = '';
+                fetchEmployees(0);
+            });
+
             prevBtn.addEventListener('click', () => {
                 if (currentPage > 0) {
-                    fetchEmployees(currentPage - 1);
+                    const empNo = empNoInput.value.trim();
+                    fetchEmployees(currentPage - 1, empNo);
                 }
             });
 
             nextBtn.addEventListener('click', () => {
-                fetchEmployees(currentPage + 1);
+                const empNo = empNoInput.value.trim();
+                fetchEmployees(currentPage + 1, empNo);
             });
 
             // Initial Load
