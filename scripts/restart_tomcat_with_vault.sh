@@ -19,11 +19,11 @@ export CRDP_JWT=$(docker exec -e VAULT_TOKEN=roottoken demo_vault vault kv get -
 
 echo "Secrets exported to environment."
 
-# Start Tomcat
-echo "Starting Tomcat..."
+# Restart Tomcat
+echo "Restarting Tomcat..."
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$BASE_DIR/tomcat_mysql_docker"
 
-docker-compose up -d tomcat
+docker-compose up -d --force-recreate tomcat
 
-echo "Tomcat started with Vault secrets."
+echo "Tomcat restarted with Vault secrets."
