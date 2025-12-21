@@ -27,7 +27,7 @@ services:
     ports:
       - "8081:8080"
     volumes:
-      - ./target/ROOT:/usr/local/tomcat/webapps/ROOT
+      - ../target/ROOT:/usr/local/tomcat/webapps/ROOT
     depends_on:
       mysql:
         condition: service_healthy
